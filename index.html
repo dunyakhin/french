@@ -191,13 +191,15 @@ saveBtn.addEventListener('click', async ()=>{
 });
 
 /* ========== Загрузка списка ========== */
+import { doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
 async function loadWords(){
   try{
     const snap = await getDocs(collection(db, WORDS_COLLECTION));
     const items = [];
     snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
-    // сортируем по дате (если есть)
     items.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
+    
     listEl.innerHTML = '';
     items.forEach(it=>{
       const div = document.createElement('div');
@@ -207,17 +209,37 @@ async function loadWords(){
           <div class="word-text">${escapeHtml(it.word)}</div>
           <div class="word-sub">${escapeHtml(it.translation)}</div>
         </div>
-        <div class="small">${new Date(it.createdAt||Date.now()).toLocaleString()}</div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="small">${new Date(it.createdAt||Date.now()).toLocaleString()}</div>
+          <button class="delete-btn" data-id="${it.id}" style="background:var(--danger); color:#fff; border:none; border-radius:6px; padding:4px 8px; cursor:pointer;">❌</button>
+        </div>
       `;
       listEl.appendChild(div);
     });
+    
     countEl.textContent = items.length;
+
+    // навешиваем обработчики на кнопки удаления
+    document.querySelectorAll('.delete-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.dataset.id;
+        if(confirm('Удалить это слово?')){
+          try{
+            await deleteDoc(doc(db, WORDS_COLLECTION, id));
+            await loadWords(); // обновляем список
+          }catch(err){
+            console.error(err);
+            alert('Ошибка при удалении: '+(err.message||err));
+          }
+        }
+      });
+    });
+
   }catch(err){
     console.error(err);
     alert('Ошибка при загрузке списка: '+(err.message||err));
   }
 }
-
 /* ========== Тренировка (логика аналогична вашей) ========== */
 let trainWords = [];
 let currentIndex = 0;
@@ -307,4 +329,5 @@ showView('add');
 </script>
 </body>
 </html>
+
 
