@@ -176,17 +176,29 @@ const WORDS_COLLECTION = 'words'; // имя коллекции в Firestore
 saveBtn.addEventListener('click', async ()=>{
   const word = inputWord.value.trim();
   const translation = inputTranslation.value.trim();
-  if(!word || !translation){ alert('Заполните оба поля'); return; }
+  if(!word || !translation){ 
+    alert('Заполните оба поля'); 
+    return; 
+  }
 
-  // сохраняем документ { word, translation, createdAt }
+  // блокируем кнопку и показываем прелодер
+  saveBtn.disabled = true;
+  const originalText = saveBtn.textContent;
+  saveBtn.textContent = 'Сохраняю…';
+
   try{
     await addDoc(collection(db, WORDS_COLLECTION), { word, translation, createdAt: Date.now() });
-    inputWord.value=''; inputTranslation.value='';
+    inputWord.value = '';
+    inputTranslation.value = '';
     await loadWords();
     alert('Сохранено');
   }catch(err){
     console.error(err);
-    alert('Ошибка при сохранении: '+(err.message||err));
+    alert('Ошибка при сохранении: ' + (err.message || err));
+  } finally {
+    // восстанавливаем кнопку
+    saveBtn.disabled = false;
+    saveBtn.textContent = originalText;
   }
 });
 
@@ -329,5 +341,6 @@ showView('add');
 </script>
 </body>
 </html>
+
 
 
