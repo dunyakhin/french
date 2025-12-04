@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Французские слова — GitHub Gist</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 15px;
+            background: #fafafa;
+            color: #333;
+        }
+
+        h2, h3 {
+            text-align: center;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            margin: 6px 0;
+            border: none;
+            border-radius: 8px;
+            background: #4a90e2;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn:hover {
+            background: #3578c6;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 6px 0 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+
+        .hidden { display: none; }
+
+        .word-item {
+            background: #ffffff;
+            padding: 12px;
+            border-radius: 10px;
+            margin: 6px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 16px;
+        }
+
+        #train-word {
+            text-align: center;
+            font-size: 28px;
+            margin: 10px 0 20px;
+        }
+
+        #result {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 18px;
+        }
+
+        hr {
+            margin: 20px 0;
+            border: none;
+            border-bottom: 1px solid #ddd;
+        }
+
+        /* Мобильные улучшения */
+        @media (max-width: 480px) {
+            body { padding: 10px; }
+            .btn { font-size: 15px; padding: 10px; }
+            input { font-size: 15px; padding: 10px; }
+            #train-word { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+<h2>Французские слова (GitHub Gist)</h2>
+
+<button class="btn" onclick="showSection('add')">Добавить слово</button>
+<button class="btn" onclick="showSection('list')">Список</button>
+<button class="btn" onclick="startTraining()">Тренировка</button>
+
+<hr>
+
+<!-- ДОБАВЛЕНИЕ -->
+<div id="section-add">
+    <input id="word" placeholder="Французское слово">
+    <input id="translation" placeholder="Перевод">
+    <button class="btn" onclick="addWord()">Сохранить</button>
+</div>
+
+<!-- СПИСОК -->
+<div id="section-list" class="hidden">
+    <h3>Сохранённые слова</h3>
+    <div id="list"></div>
+</div>
+
+<!-- ТРЕНИРОВКА -->
+<div id="section-train" class="hidden">
+    <h3>Тренировка</h3>
+    <p><b>Слово:</b></p>
+    <p id="train-word"></p>
+
+    <input id="answer" placeholder="Введите перевод">
+    <button class="btn" onclick="checkAnswer()">Проверить</button>
+
+    <p id="result"></p>
+    <button id="nextBtn" class="btn hidden" onclick="nextWord()">Следующее</button>
+</div>
+
+<script>
+/* ==========================
+   НАСТРОЙКА GITHUB GIST
+========================== */
+const GIST_ID = "40f3a35fac667a07bdec1340c9108386";
+const TOKEN = "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";
+const FILE_NAME = "words.json";
+
+/* ==========================
+   ФУНКЦИИ РАБОТЫ С GIST
+========================== */
+async function loadWordsFromGist() {
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+        headers: { "Authorization": `token ${TOKEN}` }
+    });
+    const data = await res.json();
+    return JSON.parse(data.files[FILE_NAME].content);
+}
+
+async function saveWordsToGist(words) {
+    const body = {
+        files: {
+            [FILE_NAME]: {
+                content: JSON.stringify(words, null, 2)
+            }
+        }
+    };
+
+    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+        method: "PATCH",
+        headers: {
+            "Authorization": `token ${TOKEN}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+    });
+}
+
+/* ==========================
+   ПЕРЕКЛЮЧЕНИЕ РАЗДЕЛОВ
+========================== */
+function showSection(name) {
+    document.getElementById("section-add").classList.add("hidden");
+    document.getElementById("section-list").classList.add("hidden");
+    document.getElementById("section-train").classList.add("hidden");
+
+    document.getElementById("section-" + name).classList.remove("hidden");
+
+    if (name === "list") loadWords();
+}
+
+/* ==========================
+   ДОБАВЛЕНИЕ
+========================== */
+async function addWord() {
+    const word = document.getElementById("word").value.trim();
+    const translation = document.getElementById("translation").value.trim();
+
+    if (!word || !translation) {
+        alert("Заполни оба поля!");
+        return;
+    }
+
+    const words = await loadWordsFromGist();
+    words.push({ word, translation });
+    await saveWordsToGist(words);
+
+    document.getElementById("word").value = "";
+    document.getElementById("translation").value = "";
+
+    loadWords();
+}
+
+/* ==========================
+   СПИСОК
+========================== */
+async function loadWords() {
+    const words = await loadWordsFromGist();
+    const list = document.getElementById("list");
+
+    list.innerHTML = "";
+    words.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "word-item";
+        div.textContent = `${item.word} — ${item.translation}`;
+        list.appendChild(div);
+    });
+}
+
+/* ==========================
+   ТРЕНИРОВКА
+========================== */
+let trainWords = [];
+let currentIndex = 0;
+
+async function startTraining() {
+    trainWords = await loadWordsFromGist();
+
+    if (trainWords.length === 0) {
+        alert("Нет слов для тренировки");
+        return;
+    }
+
+    trainWords = [...trainWords];
+    shuffle(trainWords);
+    currentIndex = 0;
+
+    showSection("train");
+    loadTrainingWord();
+}
+
+function loadTrainingWord() {
+    const wordObj = trainWords[currentIndex];
+
+    document.getElementById("train-word").textContent = wordObj.word;
+    document.getElementById("answer").value = "";
+    document.getElementById("result").textContent = "";
+    document.getElementById("nextBtn").classList.add("hidden");
+}
+
+function checkAnswer() {
+    const answer = document.getElementById("answer").value.trim().toLowerCase();
+    const correct = trainWords[currentIndex].translation.toLowerCase();
+
+    if (answer === correct) {
+        document.getElementById("result").textContent = "✔ Правильно!";
+        document.getElementById("result").style.color = "green";
+    } else {
+        document.getElementById("result").innerHTML =
+            `✘ Неправильно. Правильный перевод: <b>${correct}</b>`;
+        document.getElementById("result").style.color = "red";
+    }
+
+    document.getElementById("nextBtn").classList.remove("hidden");
+}
+
+function nextWord() {
+    currentIndex++;
+
+    if (currentIndex >= trainWords.length) {
+        document.getElementById("train-word").textContent = "";
+        document.getElementById("result").textContent = "Тренировка завершена!";
+        document.getElementById("nextBtn").classList.add("hidden");
+        return;
+    }
+
+    loadTrainingWord();
+}
+
+function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+}
+</script>
+
+</body>
+</html>
