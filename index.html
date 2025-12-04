@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Французские слова — Firestore</title>
+<title>Французские слова — Realtime DB</title>
 <style>
   :root{
     --bg:#f7f8fb; --card:#ffffff; --accent:#3b82f6; --muted:#6b7280;
@@ -30,7 +30,6 @@
   .train-word{font-size:28px; font-weight:700; margin:8px 0;}
   .result{font-weight:700; margin-top:8px;}
   .next{margin-top:8px}
-  footer{margin-top:18px; font-size:13px; color:var(--muted)}
 </style>
 </head>
 <body>
@@ -45,11 +44,10 @@
   </header>
 
   <main>
-    <!-- Left: main area (add / train / list shown here) -->
     <section id="main-area" class="card">
       <!-- ADD -->
       <div id="view-add">
-        <h2 style="margin:0 0 8px 0">Добавить слово</h2>
+        <h2>Добавить слово</h2>
         <form id="form-add" onsubmit="return false;">
           <input id="word" type="text" placeholder="Французское слово" autocomplete="off" />
           <input id="translation" type="text" placeholder="Перевод" autocomplete="off" />
@@ -57,93 +55,69 @@
             <button id="saveBtn" type="button">Сохранить</button>
             <button id="clearBtn" type="button" class="ghost">Очистить</button>
           </div>
-          <p class="small">Данные хранятся в Google Firestore вашего проекта.</p>
+          <p class="small">Данные хранятся в Realtime Database.</p>
         </form>
       </div>
 
       <!-- LIST -->
       <div id="view-list" style="display:none;">
-        <h2 style="margin:0 0 8px 0">Сохранённые слова</h2>
+        <h2>Сохранённые слова</h2>
         <div id="list" class="list"></div>
-        <p class="small">Обнови страницу или нажми кнопку "Список" для перезагрузки.</p>
       </div>
 
       <!-- TRAIN -->
       <div id="view-train" style="display:none;">
-        <h2 style="margin:0 0 8px 0">Тренировка</h2>
+        <h2>Тренировка</h2>
         <p class="small">Переведи слово:</p>
         <div class="train-word" id="train-word"></div>
-
         <input id="answer" type="text" placeholder="Введите перевод" autocomplete="off" />
         <div style="display:flex; gap:8px; margin-top:8px;">
           <button id="checkBtn">Проверить</button>
           <button id="skipBtn" class="ghost">Пропустить</button>
         </div>
-
         <div id="result" class="result"></div>
         <button id="nextBtn" style="display:none;" class="next ghost">Следующее</button>
       </div>
     </section>
 
-    <!-- Right column: краткая справка -->
     <aside class="card" style="height:fit-content;">
-      <h3 style="margin:0 0 8px 0">Информация</h3>
-      <p class="small">Мобильная адаптация и аккуратная верстка. Не храните приватные ключи в публичных файлах.</p>
-      <hr/>
-      <p class="small"><b>Состояние:</b> <span id="auth-status">...подключение...</span></p>
+      <h3>Информация</h3>
       <p class="small"><b>Всего слов:</b> <span id="count">0</span></p>
     </aside>
   </main>
-
-  <footer>
-    <p>Инструкции по настройке Firestore — ниже в инструкции.</p>
-  </footer>
 </div>
 
-<!-- Firebase modular SDK через CDN (используем ES modules) -->
 <script type="module">
-/* ========== ЗАМЕНИТЕ ЭТО НА СВОЙ FIREBASE CONFIG ========== 
-смотрите: Firebase Console → Project Settings → Your apps → Firebase SDK snippet (config)
-=========================================================== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+import { getDatabase, ref, push, get, remove } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+
+/* ========== ЗАМЕНИТЕ ЭТО НА СВОЙ FIREBASE CONFIG ========== */
 const firebaseConfig = {
-  apiKey: "AIzaSyAzqQNObcGY_Lu_QyEMWUTZhRhfeHUDVX8",
-  authDomain: "words-8ae65.firebaseapp.com",
-  projectId: "words-8ae65",
-  storageBucket: "words-8ae65.firebasestorage.app",
-  messagingSenderId: "908735400224",
-  appId: "1:908735400224:web:c631c74fa4b0cf21cf6f45",
-  measurementId: "G-JJ7353D81D"
+  apiKey: "ВАШ_API_KEY",
+  authDomain: "ВАШ_PROJECT_ID.firebaseapp.com",
+  databaseURL: "https://ВАШ_PROJECT_ID.firebaseio.com",
+  projectId: "ВАШ_PROJECT_ID",
+  storageBucket: "ВАШ_PROJECT_ID.appspot.com",
+  messagingSenderId: "ВАШ_SENDER_ID",
+  appId: "ВАШ_APP_ID"
 };
 
-/* ========== Импорты из CDN (modular SDK) ========== */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
-
-/* ========== Инициализация ========== */
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
+const db = getDatabase(app);
 
-/* ========== DOM refs ========== */
+/* DOM */
 const btnAdd = document.getElementById('btn-add');
 const btnList = document.getElementById('btn-list');
 const btnTrain = document.getElementById('btn-train');
-
 const viewAdd = document.getElementById('view-add');
 const viewList = document.getElementById('view-list');
 const viewTrain = document.getElementById('view-train');
-
 const listEl = document.getElementById('list');
 const countEl = document.getElementById('count');
-const authStatusEl = document.getElementById('auth-status');
-
-const formAdd = document.getElementById('form-add');
 const inputWord = document.getElementById('word');
 const inputTranslation = document.getElementById('translation');
 const saveBtn = document.getElementById('saveBtn');
 const clearBtn = document.getElementById('clearBtn');
-
 const trainWordEl = document.getElementById('train-word');
 const answerEl = document.getElementById('answer');
 const checkBtn = document.getElementById('checkBtn');
@@ -151,7 +125,10 @@ const skipBtn = document.getElementById('skipBtn');
 const resultEl = document.getElementById('result');
 const nextBtn = document.getElementById('nextBtn');
 
-/* ========== UI переключение видов ========== */
+let trainWords = [];
+let currentIndex = 0;
+
+/* UI переключение видов */
 function showView(name){
   viewAdd.style.display = name==='add' ? '' : 'none';
   viewList.style.display = name==='list' ? '' : 'none';
@@ -160,62 +137,43 @@ function showView(name){
 }
 
 /* кнопки */
-btnAdd.addEventListener('click', ()=> showView('add'));
-btnList.addEventListener('click', ()=> showView('list'));
-btnTrain.addEventListener('click', ()=> startTraining());
+btnAdd.addEventListener('click', ()=>showView('add'));
+btnList.addEventListener('click', ()=>showView('list'));
+btnTrain.addEventListener('click', ()=>startTraining());
+clearBtn.addEventListener('click', ()=>{ inputWord.value=''; inputTranslation.value=''; });
 
-/* очистка формы */
-clearBtn.addEventListener('click', ()=>{
-  inputWord.value=''; inputTranslation.value='';
-});
-
-/* ========== Firestore: коллекция слов ========== */
-const WORDS_COLLECTION = 'words'; // имя коллекции в Firestore
-
-/* ========== CRUD — добавить слово ========== */
+/* добавление слова */
 saveBtn.addEventListener('click', async ()=>{
   const word = inputWord.value.trim();
   const translation = inputTranslation.value.trim();
-  if(!word || !translation){ 
-    alert('Заполните оба поля'); 
-    return; 
-  }
+  if(!word || !translation){ alert('Заполните оба поля'); return; }
 
-  // блокируем кнопку и показываем прелодер
   saveBtn.disabled = true;
-  const originalText = saveBtn.textContent;
   saveBtn.textContent = 'Сохраняю…';
 
   try{
-    await addDoc(collection(db, WORDS_COLLECTION), { word, translation, createdAt: Date.now() });
-    inputWord.value = '';
-    inputTranslation.value = '';
+    await push(ref(db, 'words'), { word, translation, createdAt: Date.now() });
+    inputWord.value=''; inputTranslation.value='';
     await loadWords();
-    alert('Сохранено');
-  }catch(err){
-    console.error(err);
-    alert('Ошибка при сохранении: ' + (err.message || err));
-  } finally {
-    // восстанавливаем кнопку
-    saveBtn.disabled = false;
-    saveBtn.textContent = originalText;
+  }catch(err){ alert('Ошибка: '+err.message); }
+  finally{
+    saveBtn.disabled=false;
+    saveBtn.textContent='Сохранить';
   }
 });
 
-/* ========== Загрузка списка ========== */
-import { doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
-
+/* загрузка слов */
 async function loadWords(){
   try{
-    const snap = await getDocs(collection(db, WORDS_COLLECTION));
-    const items = [];
-    snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+    const snapshot = await get(ref(db, 'words'));
+    const data = snapshot.val() || {};
+    const items = Object.entries(data).map(([id,val])=>({id, ...val}));
     items.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
-    
-    listEl.innerHTML = '';
+
+    listEl.innerHTML='';
     items.forEach(it=>{
       const div = document.createElement('div');
-      div.className = 'word-item';
+      div.className='word-item';
       div.innerHTML = `
         <div>
           <div class="word-text">${escapeHtml(it.word)}</div>
@@ -223,124 +181,59 @@ async function loadWords(){
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
           <div class="small">${new Date(it.createdAt||Date.now()).toLocaleString()}</div>
-          <button class="delete-btn" data-id="${it.id}" style="background:var(--danger); color:#fff; border:none; border-radius:6px; padding:4px 8px; cursor:pointer;">❌</button>
+          <button style="background:var(--danger); color:#fff; border:none; border-radius:6px; padding:4px 8px; cursor:pointer;">❌</button>
         </div>
       `;
+      const btnDel = div.querySelector('button');
+      btnDel.addEventListener('click', async ()=>{
+        if(confirm('Удалить это слово?')) await remove(ref(db,'words/'+it.id));
+        await loadWords();
+      });
       listEl.appendChild(div);
     });
-    
+
     countEl.textContent = items.length;
-
-    // навешиваем обработчики на кнопки удаления
-    document.querySelectorAll('.delete-btn').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
-        const id = btn.dataset.id;
-        if(confirm('Удалить это слово?')){
-          try{
-            await deleteDoc(doc(db, WORDS_COLLECTION, id));
-            await loadWords(); // обновляем список
-          }catch(err){
-            console.error(err);
-            alert('Ошибка при удалении: '+(err.message||err));
-          }
-        }
-      });
-    });
-
-  }catch(err){
-    console.error(err);
-    alert('Ошибка при загрузке списка: '+(err.message||err));
-  }
+    trainWords = items;
+  }catch(err){ alert('Ошибка при загрузке: '+err.message); }
 }
-/* ========== Тренировка (логика аналогична вашей) ========== */
-let trainWords = [];
-let currentIndex = 0;
 
-async function startTraining(){
-  // подгружаем все слова
-  try{
-    const snap = await getDocs(collection(db, WORDS_COLLECTION));
-    trainWords = [];
-    snap.forEach(doc => trainWords.push(doc.data()));
-    if(trainWords.length===0){ alert('Нет слов для тренировки'); return; }
-    shuffle(trainWords);
-    currentIndex = 0;
-    showView('train');
-    loadTrainingWord();
-  }catch(err){
-    console.error(err);
-    alert('Ошибка: '+(err.message||err));
-  }
+/* тренировка */
+function startTraining(){
+  if(trainWords.length===0) loadWords().then(()=>startTraining());
+  if(trainWords.length===0){ alert('Нет слов для тренировки'); return; }
+  shuffle(trainWords);
+  currentIndex=0;
+  showView('train');
+  loadTrainingWord();
 }
 
 function loadTrainingWord(){
   const w = trainWords[currentIndex];
   trainWordEl.textContent = w.word || '';
-  answerEl.value = '';
-  resultEl.textContent = '';
-  nextBtn.style.display = 'none';
+  answerEl.value=''; resultEl.textContent=''; nextBtn.style.display='none';
 }
 
 checkBtn.addEventListener('click', ()=>{
   const ans = answerEl.value.trim().toLowerCase();
-  const correct = (trainWords[currentIndex].translation||'').toLowerCase();
-  if(ans === correct){
-    resultEl.textContent = '✔ Правильно!';
-    resultEl.style.color = 'var(--success)';
-  } else {
-    resultEl.innerHTML = `✘ Неправильно. Правильный перевод: <b>${escapeHtml(correct)}</b>`;
-    resultEl.style.color = 'var(--danger)';
-  }
-  nextBtn.style.display = '';
+  const correct = (trainWords[currentIndex]?.translation||'').toLowerCase();
+  if(ans===correct){ resultEl.textContent='✔ Правильно!'; resultEl.style.color='var(--success)'; }
+  else{ resultEl.innerHTML=`✘ Неправильно. Правильный перевод: <b>${escapeHtml(correct)}</b>`; resultEl.style.color='var(--danger)'; }
+  nextBtn.style.display='';
 });
 
-skipBtn.addEventListener('click', ()=>{
-  resultEl.textContent = '';
-  nextBtn.style.display = '';
-});
-
+skipBtn.addEventListener('click', ()=>{ resultEl.textContent=''; nextBtn.style.display=''; });
 nextBtn.addEventListener('click', ()=>{
   currentIndex++;
-  if(currentIndex >= trainWords.length){
-    trainWordEl.textContent = '';
-    resultEl.textContent = 'Тренировка завершена!';
-    nextBtn.style.display = 'none';
-    return;
-  }
+  if(currentIndex>=trainWords.length){ trainWordEl.textContent=''; resultEl.textContent='Тренировка завершена!'; nextBtn.style.display='none'; return; }
   loadTrainingWord();
 });
 
-/* ========== Утилиты ========== */
-function shuffle(arr){
-  for(let i=arr.length-1;i>0;i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [arr[i], arr[j]]=[arr[j], arr[i]];
-  }
-}
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
 function escapeHtml(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 
-/* ========== Анонимная аутентификация (рекомендуется) ========== */
-authStatusEl.textContent = 'Подключаюсь...';
-signInAnonymously(auth).catch(err=>{
-  // может быть запрещено в консоли — сообщим
-  console.warn('signInAnonymously error', err);
-});
-
-// слежение за изменениями статуса аутентификации
-onAuthStateChanged(auth, user=>{
-  if(user){
-    authStatusEl.textContent = 'авторизован (anon)';
-  } else {
-    authStatusEl.textContent = 'неавторизован';
-  }
-});
-
-/* показываем начальный вид */
 showView('add');
-
 </script>
 </body>
 </html>
-
 
 
